@@ -87,6 +87,8 @@
 #define MICROPY_PY_IO               (0)
 #define MICROPY_PY_SYS              (0)
 
+#define MICROPY_PY_MICROPYTHON_MEM_INFO (0)
+
 // type definitions for the specific machine
 
 #ifdef __LP64__

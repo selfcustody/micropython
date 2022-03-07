@@ -242,6 +242,24 @@ typedef union _mp_rom_obj_t { uint64_t u64; struct { const void *lo, *hi; } u32;
 
 // Macros to create objects that are stored in ROM.
 
+#ifndef MP_ROM_NONE
+#if MICROPY_OBJ_IMMEDIATE_OBJS
+#define MP_ROM_NONE mp_const_none
+#else
+#define MP_ROM_NONE MP_ROM_PTR(&mp_const_none_obj)
+#endif
+#endif
+
+#ifndef MP_ROM_FALSE
+#if MICROPY_OBJ_IMMEDIATE_OBJS
+#define MP_ROM_FALSE mp_const_false
+#define MP_ROM_TRUE mp_const_true
+#else
+#define MP_ROM_FALSE MP_ROM_PTR(&mp_const_false_obj)
+#define MP_ROM_TRUE MP_ROM_PTR(&mp_const_true_obj)
+#endif
+#endif
+
 #ifndef MP_ROM_INT
 typedef mp_const_obj_t mp_rom_obj_t;
 #define MP_ROM_INT(i) MP_OBJ_NEW_SMALL_INT(i)

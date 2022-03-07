@@ -27,6 +27,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "py/gc.h"
@@ -47,7 +48,7 @@
 
 // make this 1 to zero out swept memory to more eagerly
 // detect untraced object still in use
-#define CLEAR_ON_SWEEP (0)
+#define CLEAR_ON_SWEEP (1)
 
 #define WORDS_PER_BLOCK ((MICROPY_BYTES_PER_GC_BLOCK) / BYTES_PER_WORD)
 #define BYTES_PER_BLOCK (MICROPY_BYTES_PER_GC_BLOCK)
@@ -105,6 +106,54 @@
 #define GC_EXIT()
 #endif
 
+// Normal memset can be optimized away by the compiler.
+// Using the suggested "secure_memset" from:
+// http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1381.pdf
+void memset_s(void *v, unsigned char c, size_t n) {
+    volatile unsigned char *p = v;
+    while (n--) *p++ = c;
+}
+
+// Variant of memset_s where random byte values are used instead
+void memset_srand(void *v, size_t n) {
+    volatile unsigned char *p = v;
+    while (n--) *p++ = (unsigned char)(rand() % 256);
+}
+
+// Writes a combination of 0s, 1s, and random data to the region.
+// Implements the (likely unnecessary + overkill) 7-pass version of DoD 5220.22-M:
+// https://www.bitraser.com/blog/dod-wiping-the-secure-wiping-standard-to-get-rid-of-data/
+// https://www.lifewire.com/data-sanitization-methods-2626133
+void secure_erase(void *v, size_t n) {
+    memset_s(v, 0, n);
+    memset_s(v, 1, n);
+    memset_srand(v, n);
+
+    memset_srand(v, n);
+
+    memset_s(v, 0, n);
+    memset_s(v, 1, n);
+    memset_srand(v, n);
+}
+
+// Performs a secure erase before setting the region to 0
+void secure_zero(void *v, size_t n) {
+    secure_erase(v, n);
+    memset_s(v, 0, n);
+}
+
+void gc_wipe(void) {
+    // clear ATBs
+    secure_zero(MP_STATE_MEM(gc_alloc_table_start), MP_STATE_MEM(gc_alloc_table_byte_len));
+
+#if MICROPY_ENABLE_FINALISER
+    // clear FTBs
+    secure_zero(MP_STATE_MEM(gc_finaliser_table_start), (MP_STATE_MEM(gc_alloc_table_byte_len) * BLOCKS_PER_ATB + BLOCKS_PER_FTB - 1) / BLOCKS_PER_FTB);
+#endif
+    // clear pool
+    secure_zero(MP_STATE_MEM(gc_pool_start), MP_STATE_MEM(gc_pool_end) - MP_STATE_MEM(gc_pool_start));
+}
+
 // TODO waste less memory; currently requires that all entries in alloc_table have a corresponding block in pool
 void gc_init(void *start, void *end) {
     // align end pointer on block boundary
@@ -138,13 +187,7 @@ void gc_init(void *start, void *end) {
     assert(MP_STATE_MEM(gc_pool_start) >= MP_STATE_MEM(gc_finaliser_table_start) + gc_finaliser_table_byte_len);
 #endif
 
-    // clear ATBs
-    memset(MP_STATE_MEM(gc_alloc_table_start), 0, MP_STATE_MEM(gc_alloc_table_byte_len));
-
-#if MICROPY_ENABLE_FINALISER
-    // clear FTBs
-    memset(MP_STATE_MEM(gc_finaliser_table_start), 0, gc_finaliser_table_byte_len);
-#endif
+    gc_wipe();
 
     // set last free ATB index to start of heap
     MP_STATE_MEM(gc_last_free_atb_index) = 0;
