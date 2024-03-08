@@ -14,14 +14,39 @@ import os
 import subprocess
 import sys
 import types
+import zipfile
+from zipfile import ZipInfo
 
 def create_zip(zip_filename, zip_dir):
+    """
+    Create a zip file from the contents of the given directory.
+    Sorting them for better reproducibility.
+    """
     abs_zip_filename = os.path.abspath(zip_filename)
     save_cwd = os.getcwd()
     os.chdir(zip_dir)
+
     if os.path.exists(abs_zip_filename):
         os.remove(abs_zip_filename)
-    subprocess.check_call(['zip', '-0', '-r', '-D', abs_zip_filename, '.'])
+
+    with zipfile.ZipFile(abs_zip_filename, 'w', zipfile.ZIP_STORED) as zipf:
+        for root, dirs, files in os.walk('.'):
+            dirs.sort()  # Sort directories
+            files.sort()  # Sort files
+            for file in files:
+                file_path = os.path.join(root, file)
+                if file_path.endswith(('.py', '.md')):  # Check if the file is a Python or Markdown file
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    content = content.replace('\r\n', '\n')  # Convert CRLF to LF
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                # Set the timestamps to a special date to ensure reproducibility
+                zip_info = ZipInfo(file_path)
+                zip_info.date_time = (2009, 1, 3, 0, 0, 0)  # January 3, 2009
+                with open(file_path, 'rb') as f:
+                    zipf.writestr(zip_info, f.read())
+
     os.chdir(save_cwd)
 
 def create_c_from_file(c_filename, zip_filename):
