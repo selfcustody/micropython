@@ -38,9 +38,11 @@ def create_zip(zip_filename, zip_dir):
                 if file_path.endswith(('.py', '.md')):  # Check if the file is a Python or Markdown file
                     with open(file_path, 'r', encoding='utf-8') as f:
                         content = f.read()
-                    content = content.replace('\r\n', '\n')  # Convert CRLF to LF
-                    with open(file_path, 'w', encoding='utf-8') as f:
+                        
+                    # Converts every line ending to '\n' (LF)
+                    with open(file_path, 'w', encoding='utf-8', newline='\n') as f:
                         f.write(content)
+                        
                 # Set the timestamps to a special date to ensure reproducibility
                 zip_info = ZipInfo(file_path)
                 zip_info.date_time = (2009, 1, 3, 0, 0, 0)  # January 3, 2009
