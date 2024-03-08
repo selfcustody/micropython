@@ -15,7 +15,6 @@ import subprocess
 import sys
 import types
 import zipfile
-from zipfile import ZipInfo
 
 def create_zip(zip_filename, zip_dir):
     """
@@ -42,14 +41,14 @@ def create_zip(zip_filename, zip_dir):
                     # Converts every line ending to '\n' (LF)
                     with open(file_path, 'w', encoding='utf-8', newline='\n') as f:
                         f.write(content)
-                        
-                # Set the timestamps to a special date to ensure reproducibility
-                zip_info = ZipInfo(file_path)
-                zip_info.date_time = (2009, 1, 3, 0, 0, 0)  # January 3, 2009
-                with open(file_path, 'rb') as f:
-                    zipf.writestr(zip_info, f.read())
+                
+                # Set the timestamp to the time the Bitcoin genesis block was mined
+                os.utime(file_path, (1230940800, 1230940800))  # January 3, 2009
+                
+                zipf.write(file_path, arcname=os.path.relpath(file_path, start=zip_dir))
 
     os.chdir(save_cwd)
+
 
 def create_c_from_file(c_filename, zip_filename):
     with open(zip_filename, 'rb') as zip_file:
