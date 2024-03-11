@@ -44,6 +44,9 @@ def create_zip(zip_filename, zip_dir):
                 
                 # Set the timestamp to the time the Bitcoin genesis block was mined
                 os.utime(file_path, (1231006505, 1231006505))  # January 3, 2009, 18:15:05 UTC
+
+                # Set to a uniform file permission
+                os.chmod(file_path, 0o0644)
                 
                 zipf.write(file_path, arcname=os.path.relpath(file_path, start=zip_dir))
 
