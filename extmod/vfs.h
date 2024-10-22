@@ -55,6 +55,7 @@ typedef struct _mp_vfs_mount_t {
     size_t len;
     mp_obj_t obj;
     struct _mp_vfs_mount_t *next;
+    bool exec_allowed;         // Flag indicating if execution is allowed from this VFS
 } mp_vfs_mount_t;
 
 mp_vfs_mount_t *mp_vfs_lookup_path(const char *path, const char **path_out);

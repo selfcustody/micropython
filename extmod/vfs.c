@@ -128,6 +128,11 @@ mp_import_stat_t mp_vfs_import_stat(const char *path) {
     if (vfs == MP_VFS_NONE || vfs == MP_VFS_ROOT) {
         return MP_IMPORT_STAT_NO_EXIST;
     }
+    // Execution permission check
+    if (!vfs->exec_allowed) {
+        // Execution is not allowed on this VFS mount
+        return MP_IMPORT_STAT_NO_EXIST;
+    }
 
     // If the mounted object has the VFS protocol, call its import_stat helper
     const mp_vfs_proto_t *proto = mp_obj_get_type(vfs->obj)->protocol;
