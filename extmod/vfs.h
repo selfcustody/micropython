@@ -58,6 +58,12 @@ typedef struct _mp_vfs_mount_t {
     bool exec_allowed;         // Flag indicating if execution is allowed from this VFS
 } mp_vfs_mount_t;
 
+// Declaration of the global vfs object
+extern mp_vfs_mount_t *main_vfs;
+
+// Function to set exec_allowed value
+void vfs_set_exec_allowed(bool allowed);
+
 mp_vfs_mount_t *mp_vfs_lookup_path(const char *path, const char **path_out);
 mp_import_stat_t mp_vfs_import_stat(const char *path);
 mp_obj_t mp_vfs_mount(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args);

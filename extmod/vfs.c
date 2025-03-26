@@ -46,6 +46,25 @@
 // A fixed maximum size is used to avoid the need for a costly variable array.
 #define PROXY_MAX_ARGS (2)
 
+// Declare the global vfs object to be changed by main.c and mp
+mp_vfs_mount_t *main_vfs = NULL;
+
+// Function to set the exec_allowed value
+void vfs_set_exec_allowed(bool allowed) {
+    if (main_vfs != NULL) {
+        main_vfs->exec_allowed = allowed;
+    }
+}
+
+// Python wrapper function to vfs_set_exec_allowed
+STATIC mp_obj_t mp_set_exec_allowed(mp_obj_t allowed_obj) {
+    bool allowed = mp_obj_get_int(allowed_obj);
+    vfs_set_exec_allowed(allowed);
+    return mp_const_none;
+}
+// Register the function so it can be called from MicroPython
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_set_exec_allowed_obj, mp_set_exec_allowed);
+
 // path is the path to lookup and *path_out holds the path within the VFS
 // object (starts with / if an absolute path).
 // Returns MP_VFS_ROOT for root dir (and then path_out is undefined) and
@@ -489,5 +508,24 @@ mp_obj_t mp_vfs_statvfs(mp_obj_t path_in) {
     return mp_vfs_proxy_call(vfs, MP_QSTR_statvfs, 1, &path_out);
 }
 MP_DEFINE_CONST_FUN_OBJ_1(mp_vfs_statvfs_obj, mp_vfs_statvfs);
+
+
+/****************************** MODULE ******************************/
+// Define the vfs module to mp
+STATIC const mp_rom_map_elem_t mp_module_vfs_globals_table[] = {
+    { MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_OBJ_NEW_QSTR(MP_QSTR_vfs) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_exec_allowed), (mp_obj_t)&mp_set_exec_allowed_obj },
+};
+
+STATIC MP_DEFINE_CONST_DICT(module_vfs_globals, mp_module_vfs_globals_table);
+
+// Define the module
+const mp_obj_module_t vfs_module = {
+    .base = { &mp_type_module },
+    .globals = (mp_obj_dict_t*)&module_vfs_globals,
+};
+
+// Register the module to make it available in Python
+MP_REGISTER_MODULE(MP_QSTR_vfs, vfs_module, MICROPY_VFS);
 
 #endif // MICROPY_VFS
