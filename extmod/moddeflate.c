@@ -69,7 +69,7 @@ typedef enum {
 
 // This is used when the wbits is unset in the DeflateIO constructor. Default
 // to the smallest window size (faster compression, less RAM usage, etc).
-const int DEFLATEIO_DEFAULT_WBITS = 8;
+const int DEFLATEIO_DEFAULT_WBITS = 10;
 
 typedef struct {
     void *window;
@@ -232,7 +232,7 @@ static mp_obj_t deflateio_make_new(const mp_obj_type_t *type, size_t n_args, siz
     mp_arg_check_num(n_args, n_kw, 1, 4, false);
 
     mp_int_t format = n_args > 1 ? mp_obj_get_int(args_in[1]) : DEFLATEIO_FORMAT_RAW;
-    mp_int_t wbits = n_args > 2 ? mp_obj_get_int(args_in[2]) : 10;
+    mp_int_t wbits = n_args > 2 ? mp_obj_get_int(args_in[2]) : DEFLATEIO_DEFAULT_WBITS;
 
     if (format < DEFLATEIO_FORMAT_MIN || format > DEFLATEIO_FORMAT_MAX) {
         mp_raise_ValueError(MP_ERROR_TEXT("format"));
