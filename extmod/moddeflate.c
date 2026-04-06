@@ -71,10 +71,14 @@ typedef enum {
 // to the smallest window size (faster compression, less RAM usage, etc).
 const int DEFLATEIO_DEFAULT_WBITS = 10;
 
+// Decompression safety limit — prevents zip bomb OOM on K210 (6MB RAM)
+#define DEFLATEIO_MAX_DECOMPRESSED_SIZE (100 * 1024)  // 100 KB
+
 typedef struct {
     void *window;
     uzlib_uncomp_t decomp;
     bool eof;
+    size_t total_out;
 } mp_obj_deflateio_read_t;
 
 #if MICROPY_PY_DEFLATE_COMPRESS
@@ -125,6 +129,7 @@ static bool deflateio_init_read(mp_obj_deflateio_t *self) {
     self->read->decomp.source_read_data = self;
     self->read->decomp.source_read_cb = deflateio_read_stream;
     self->read->eof = false;
+    self->read->total_out = 0;
 
     // Don't modify self->window_bits as it may also be used for write.
     int wbits = self->window_bits;
@@ -266,6 +271,18 @@ static mp_uint_t deflateio_read(mp_obj_t o_in, void *buf, mp_uint_t size, int *e
         return 0;
     }
 
+    // Cap this read so cumulative output never exceeds the decompression limit
+    size_t remaining = 0;
+    if (self->read->total_out < DEFLATEIO_MAX_DECOMPRESSED_SIZE) {
+        remaining = DEFLATEIO_MAX_DECOMPRESSED_SIZE - self->read->total_out;
+    }
+    if (size > remaining) {
+        if (remaining == 0) {
+            mp_raise_ValueError(MP_ERROR_TEXT("decompressed data exceeds size limit"));
+        }
+        size = remaining;
+    }
+
     self->read->decomp.dest = buf;
     self->read->decomp.dest_limit = (uint8_t *)buf + size;
     int st = uzlib_uncompress_chksum(&self->read->decomp);
@@ -277,7 +294,12 @@ static mp_uint_t deflateio_read(mp_obj_t o_in, void *buf, mp_uint_t size, int *e
         *errcode = MP_EINVAL;
         return MP_STREAM_ERROR;
     }
-    return self->read->decomp.dest - (uint8_t *)buf;
+    mp_uint_t bytes_read = self->read->decomp.dest - (uint8_t *)buf;
+    self->read->total_out += bytes_read;
+
+    // If we filled the capped buffer and stream isn't done, the original
+    // request was larger — the next call will hit the limit above
+    return bytes_read;
 }
 
 #if MICROPY_PY_DEFLATE_COMPRESS
